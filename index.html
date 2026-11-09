@@ -174,6 +174,7 @@ input[type=text]{font:inherit;font-weight:800;font-size:1.3rem;padding:8px 10px;
     <div class="gears" id="gears" aria-label="Dişli sayın"></div>
   </header>
   <ol class="steps" id="steps" hidden></ol>
+  <p id="ttsnote" class="sheet" role="status" hidden></p>
   <main id="main" class="wrap"></main>
 </div></div>
 
@@ -234,21 +235,36 @@ function pickVoice(){
   voice=v.find(x=>/^en[-_]US/i.test(x.lang)&&/google|samantha/i.test(x.name))||v.find(x=>/^en[-_]US/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null;
 }
 if(hasTTS){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice);}catch(e){}}
-const noVoice=()=>!hasTTS||(voiceCount>0&&!voice);
+const noVoice=()=>!hasTTS||ttsBroken||(voiceCount>0&&!voice);
+let ttsBroken=false,ttsUnlocked=false;
+function ttsFailed(text){
+  ttsBroken=true;
+  const n=$('#ttsnote');n.hidden=false;
+  n.textContent=`Ses çıkmadı. Söylenen: "${text}". Bağlantıyı Chrome veya Safari'de açmayı dene.`;
+}
+function ttsWorked(){ttsBroken=false;$('#ttsnote').hidden=true;}
+function unlockTTS(){
+  if(ttsUnlocked||!hasTTS)return;
+  ttsUnlocked=true;
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);}catch(e){}
+}
+document.addEventListener('pointerdown',unlockTTS,{passive:true});
 function talking(on){const v=$('.vida');if(v)v.classList.toggle('talk',on);}
 function say(text,opt){
   const o=opt||{},rate=o.rate||.88,id=++sayId,g=gen;
-  let fin=false;
+  let fin=false,began=false;
+  setTimeout(()=>{if(!began&&id===sayId)ttsFailed(text);},1600);
   const finish=()=>{if(fin||id!==sayId)return;fin=true;clearTimeout(t);talking(false);if(g===gen&&o.done)o.done();};
   const t=setTimeout(finish,text.split(' ').length*520/rate+1600);
-  if(!hasTTS){return;}
+  if(!hasTTS){ttsFailed(text);return;}
   talking(true);
   const go=()=>{
     if(id!==sayId)return;
     const u=new SpeechSynthesisUtterance(text);
-    u.lang=voice?voice.lang:'en-US';if(voice)u.voice=voice;u.rate=rate;
+    u.lang=voice?voice.lang.replace('_','-'):'en-US';if(voice)u.voice=voice;u.rate=rate;
+    u.onstart=()=>{began=true;ttsWorked();};
     u.onend=finish;u.onerror=finish;
-    try{speechSynthesis.speak(u);}catch(e){finish();}
+    try{speechSynthesis.resume();speechSynthesis.speak(u);}catch(e){finish();}
   };
   if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.cancel();setTimeout(go,70);}else go();
 }
