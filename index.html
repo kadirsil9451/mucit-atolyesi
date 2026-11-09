@@ -30,6 +30,7 @@ input{-webkit-user-select:text;user-select:text}
 #app{padding-block:10px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));min-height:100%;box-sizing:border-box}
 .wrap{max-width:760px;margin:0 auto;display:grid;gap:14px}
 .wrap>*{min-width:0}
+.wrap .wrap{width:100%}
 h1,h2,p{margin:0}
 h1{font-size:clamp(2.5rem,11vw,3.9rem);line-height:.98;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
 h2{font-size:1.5rem;line-height:1.1;font-weight:800;text-wrap:balance}
@@ -70,6 +71,9 @@ button:focus-visible,input:focus-visible,.lane:focus-visible{outline:3px solid v
 .map b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--brass);color:var(--brass);font-weight:800}
 .map span span{color:var(--chalk-dim)}
 
+.tb{font-weight:700;font-size:1rem;min-height:48px;padding:6px 14px;border-radius:10px;border:2px solid var(--ink);color:var(--ink)}
+.tune{display:grid;gap:8px}
+.tune strong{font-size:1.2rem;line-height:1.1}
 .levels{display:grid;gap:8px}
 @media(min-width:620px){.levels{grid-template-columns:1fr 1fr}}
 .lv{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;background:var(--sheet);color:var(--ink);border-radius:8px;padding:8px 12px;min-height:62px;box-shadow:0 3px 0 rgba(8,25,48,.55)}
@@ -211,7 +215,7 @@ const STEPS=[['Depo','Dinleme'],['Atölye','Okuma'],['Patent','Yazma'],['Jüri',
 
 /* ---------- storage ---------- */
 const KEY='mucit-atolyesi-v1';
-let S={gears:0,played:0,weak:{},book:[],log:[],done:[]};
+let S={gears:0,played:0,weak:{},book:[],log:[],done:[],songs:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
 if(S.played>0&&!S.done.length)S.done=[0];
 function save(){if(TEST)return;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
@@ -513,6 +517,7 @@ function home(){
     <button class="btn" id="go" type="button">${S.done.length>=LEVELS.length?'Son bölümü yeniden oyna':`${nextI+1}. bölüme başla`}</button>
     <button class="ghost" id="bk" type="button">Mucit Defteri (${S.book.length})</button>
     <button class="ghost" id="fs" type="button">Serbest saz</button>
+    <button class="ghost" id="tn" type="button">Kendi Ezgim</button>
   </div>
   <h2>Bölümler</h2>
   <div class="levels">${LEVELS.map((l,i)=>{const open=i===0||S.done.includes(i-1)||TEST,ok=S.done.includes(i);return `<button class="lv${ok?' ok':''}" data-l="${i}" type="button" ${open?'':'disabled'}><b>${i+1}</b><span><strong>${l.t}</strong><small>${open?l.items.slice(0,4).join(', '):'Önceki bölümü bitir'}</small></span><em>${ok?'Bitti':open?'Oyna':'Kilitli'}</em></button>`;}).join('')}</div>
@@ -521,6 +526,7 @@ function home(){
   $('#go').onclick=()=>{say('Hello, inventor!');startLevel(nextI);};
   $$('.lv').forEach(b=>b.onclick=()=>startLevel(+b.dataset.l));
   $('#rp').onclick=report;
+  $('#tn').onclick=tunes;
   $('#bk').onclick=book;
   $('#fs').onclick=freeSaz;
 }
@@ -803,13 +809,17 @@ const CHART_1=[
 let CHART=CHART_1,BEAT=760;
 const TRAVEL=2700,LEAD=4;
 let lanes=null,running=null;
+let customSong=null,freeTime=false;
 function sazGame(){
-  CHART=chartFor(L);BEAT=760-L*14;
+  customSong=null;freeTime=false;CHART=chartFor(L);BEAT=760-L*14;
+  sazView(esc(cur.lines[0]),4);
+}
+function sazView(cap,step){
   show(`${vida('Sarı nota halkaya gelince o tele dokun. Önce dinleyebilirsin.')}
-  <div class="line-now" id="now" aria-live="off">${esc(cur.lines[0])}</div>
+  <div class="line-now" id="now" aria-live="off">${cap}</div>
   <div class="hw" id="hw">${STRINGS.map((s,i)=>`<div class="lane" data-s="${i}" role="button" tabindex="0" aria-label="${s.n} teli"><i>${s.n}</i></div>`).join('')}</div>
-  <div class="row c" id="act"><button class="btn" id="play" type="button">Çal</button><button class="ghost" id="demo" type="button">Önce dinle</button></div>
-  <p class="note" id="msg">Saz bozuk düzende: La, Re, Sol. Notaların üstünde adları yazıyor.</p>`,4);
+  <div class="row c" id="act"><button class="btn" id="play" type="button">Çal</button><button class="ghost" id="demo" type="button">Önce dinle</button>${!customSong&&S.songs.length?'<button class="ghost" id="own" type="button">Son ezgimle çal</button>':''}</div>
+  <p class="note" id="msg">Saz bozuk düzende: La, Re, Sol. Notaların üstünde adları yazıyor.</p>`,step);
   [...new Set(CHART.map(c=>fHz(c[1],c[2])))].forEach(pluckBuf);
   lanes=$$('.lane');
   lanes.forEach(l=>{
@@ -818,6 +828,7 @@ function sazGame(){
   });
   $('#play').onclick=()=>start(false);
   $('#demo').onclick=()=>start(true);
+  const own=$('#own');if(own)own.onclick=()=>{CHART=S.songs[0].notes;BEAT=500;freeTime=true;start(false);};
 }
 function flash(s){const l=lanes[s];l.classList.remove('pl');void l.offsetWidth;l.classList.add('pl');}
 function popMsg(s,t){const p=document.createElement('b');p.className='pop';p.textContent=t;lanes[s].appendChild(p);setTimeout(()=>p.remove(),600);}
@@ -835,7 +846,7 @@ function strike(s){
 function start(auto){
   const g=gen;
   $('#act').hidden=true;$('#msg').textContent=auto?'Dinle, notaların sırasını izle.':`0 / ${CHART.length} nota`;
-  const t0=performance.now()+LEAD*BEAT;
+  const t0=performance.now()+Math.max(LEAD*BEAT,3000);
   const notes=CHART.map(c=>{
     const el=document.createElement('div');el.className='n';el.textContent=c[3];el.style.transform='translate3d(-99px,0,0)';
     lanes[c[1]].appendChild(el);
@@ -849,9 +860,9 @@ function start(auto){
   (function loop(){
     if(g!==gen){running=null;return;}
     const ts=performance.now(),beat=Math.floor((ts-t0)/BEAT);
-    if(beat!==lastBeat&&beat>=-LEAD&&ts<end-900){lastBeat=beat;fx.tick();}
+    if(!freeTime&&beat!==lastBeat&&beat>=-LEAD&&ts<end-900){lastBeat=beat;fx.tick();}
     const b=(ts-t0)/BEAT,idx=b<7?0:b<15?1:2;
-    if(now.dataset.i!=String(idx)){now.dataset.i=idx;now.textContent=cur.lines[idx];}
+    if(!customSong&&now.dataset.i!=String(idx)){now.dataset.i=idx;now.textContent=cur.lines[idx];}
     notes.forEach(n=>{
       const x=hit+(n.t-ts)*speed;
       if(!n.st||n.st===2)n.el.style.transform=`translate3d(${x.toFixed(1)}px,0,0)`;
@@ -862,8 +873,8 @@ function start(auto){
     const res=running;running=null;
     notes.forEach(n=>n.el.remove());
     if(auto){
-      $('#act').hidden=false;$('#msg').textContent='Hazırsan Çal düğmesine bas.';now.textContent=cur.lines[0];delete now.dataset.i;
-    }else result(res.hits);
+      $('#act').hidden=false;$('#msg').textContent='Hazırsan Çal düğmesine bas.';if(!customSong){now.textContent=cur.lines[0];delete now.dataset.i;}
+    }else if(customSong)tuneDone(res.hits);else result(res.hits);
   })();
 }
 function result(hits){
@@ -872,7 +883,7 @@ function result(hits){
   const parts=cur.w.sel.map(k=>cur.parts[k]);
   S.book.unshift({no:cur.no,name:cur.name,body:cur.w.body,parts,lines:cur.lines,hits});
   S.book=S.book.slice(0,40);
-  S.log.unshift({d:new Date().toISOString().slice(0,10),n:`B${L+1}: ${cur.name}`,hits,...cur.st});
+  S.log.unshift({d:new Date().toISOString().slice(0,10),n:`B${L+1}: ${cur.name}`,hits,t:CHART.length,...cur.st});
   S.log=S.log.slice(0,20);save();
   sendReport(hits);
   show(`<p class="win">It works!</p>
@@ -916,7 +927,7 @@ function sendReport(hits){
   const c=cur.st;
   const weak=Object.entries(S.weak).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).map(e=>e[0]+' '+e[1]).join(', ');
   S.out=S.out||[];
-  S.out.push({device:deviceId(),name:`B${L+1}: ${cur.name}`,played:S.played,gears:S.gears,depot:c.dw.join(', '),slow:c.slow,hint:c.hint,tile:c.tile,typ:c.typ,saz:hits,spoken:c.spoken,spokenAll:c.spokenAll,weak});
+  S.out.push({device:deviceId(),name:`B${L+1}: ${cur.name}`,played:S.played,gears:S.gears,depot:c.dw.join(', '),slow:c.slow,hint:c.hint,tile:c.tile,typ:c.typ,saz:Math.round(hits/CHART.length*18),spoken:c.spoken,spokenAll:c.spokenAll,weak});
   S.out=S.out.slice(-30);save();
   flushReports();
 }
@@ -929,7 +940,7 @@ function flushReports(){
 }
 function reportText(){
   const weak=Object.entries(S.weak).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).map(e=>`${e[0]} ${e[1]}`).join(', ')||'yok';
-  const rows=S.log.map(l=>`${l.d} | ${l.n} | depo hata: ${l.dw.join(', ')||'yok'} | yavaş dinleme ${l.slow}, ipucu ${l.hint} | harf hata ${l.tile}, yazma hata ${l.typ} | saz ${l.hits}/${CHART.length}`);
+  const rows=S.log.map(l=>`${l.d} | ${l.n} | depo hata: ${l.dw.join(', ')||'yok'} | yavaş dinleme ${l.slow}, ipucu ${l.hint} | harf hata ${l.tile}, yazma hata ${l.typ} | saz ${l.hits}/${l.t||18}`);
   return ['Mucit Atölyesi raporu',`Biten icat: ${S.played}, dişli: ${S.gears}`,`Zorlanılan parçalar: ${weak}`,'Son oyunlar:',...(rows.length?rows:['Henüz biten oyun yok'])].join('\n');
 }
 function report(){
@@ -945,6 +956,72 @@ function report(){
     navigator.clipboard.writeText(t.value).then(()=>{$('#cmsg').textContent='Kopyalandı.';},fallback);
   };
   $('#back').onclick=home;
+}
+
+/* ---------- MY TUNES ---------- */
+const MAX_NOTES=48,MAX_SONGS=5;
+function tunes(){
+  let armed=-1;
+  const list=S.songs.map((t,i)=>`<div class="sheet tune"><strong>${esc(t.name)}</strong><span class="hand" style="font-size:1.1rem">${t.notes.length} nota${t.best!=null?` · en iyi skor ${t.best} / ${t.notes.length}`:''}</span>
+    <div class="row"><button class="btn" data-p="${i}" type="button">Çal</button><button class="tb" data-s="${i}" type="button">Yavaş çal</button><button class="tb" data-x="${i}" type="button">Sil</button></div></div>`).join('');
+  show(`<h2>Kendi Ezgim</h2>
+  <p>Sazda bir ezgi çal, oyun kaydetsin. Sonra notaları kayarak gelsin, sen de çalışıp skor yap.</p>
+  <div class="wrap">${list||'<p class="tag">Henüz ezgin yok. İlk ezgini kaydet.</p>'}</div>
+  <div class="row"><button class="btn" id="newT" type="button" ${S.songs.length>=MAX_SONGS?'disabled':''}>Yeni ezgi kaydet</button><button class="ghost" id="back" type="button">Atölyeye dön</button></div>
+  ${S.songs.length>=MAX_SONGS?'<p class="note">En çok 5 ezgi saklanır. Yeni kayıt için birini sil.</p>':''}`);
+  $('#newT').onclick=recordTune;
+  $('#back').onclick=TEST?testPanel:home;
+  $$('[data-p]').forEach(b=>b.onclick=()=>playTune(S.songs[+b.dataset.p],500));
+  $$('[data-s]').forEach(b=>b.onclick=()=>playTune(S.songs[+b.dataset.s],760));
+  $$('[data-x]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.x;
+    if(armed!==i){armed=i;b.textContent='Silmek için tekrar dokun';return;}
+    S.songs.splice(i,1);save();tunes();
+  });
+}
+function recordTune(){
+  let rec=[],last=0,clock=0;
+  show(`<h2>Ezgini çal</h2>
+  <p>İlk dokunuşunla kayıt başlar. Üstte Sol, ortada Re, altta La teli var.</p>
+  <div class="frets"><div class="fgrid">${STRINGS.map((x,i)=>FRETS.map((f,j)=>`<button class="fret" data-s="${i}" data-j="${j}" type="button">${FNAMES[i][j]}</button>`).join('')).join('')}</div></div>
+  <p class="line-now" id="cnt" aria-live="off">0 / ${MAX_NOTES} nota</p>
+  <div class="row c"><button class="btn" id="fin" type="button" disabled>Bitir</button><button class="ghost" id="redo" type="button">Baştan al</button><button class="ghost" id="back" type="button">Vazgeç</button></div>
+  <p class="note" id="hint">En az 6 nota çal.</p>`);
+  const count=()=>{$('#cnt').textContent=`${rec.length} / ${MAX_NOTES} nota`;$('#fin').disabled=rec.length<6;$('#hint').textContent=rec.length<6?'En az 6 nota çal.':rec.length>=MAX_NOTES?'Nota sınırına geldin. Bitir düğmesine bas.':'Bitince Bitir düğmesine bas.';};
+  $$('.fret').forEach(b=>b.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    const s=+b.dataset.s,j=+b.dataset.j,ts=performance.now();
+    pluck(fHz(s,FRETS[j]));
+    b.classList.remove('pl');void b.offsetWidth;b.classList.add('pl');later(()=>b.classList.remove('pl'),120);
+    if(rec.length>=MAX_NOTES)return;
+    if(rec.length){const gap=ts-last;if(gap<90)return;clock+=Math.min(gap,2500);}
+    last=ts;
+    rec.push([Math.round(clock)/500,s,FRETS[j],FNAMES[s][j]]);
+    count();
+  }));
+  $('#redo').onclick=()=>{rec=[];clock=0;count();};
+  $('#back').onclick=tunes;
+  $('#fin').onclick=()=>{
+    const n=(S.nextSong=(S.nextSong||0)+1);
+    S.songs.unshift({name:`Ezgim ${n}`,notes:rec,best:null});
+    save();addGears(2);fx.clap();tunes();
+  };
+}
+function playTune(song,beat){
+  customSong=song;freeTime=true;CHART=song.notes;BEAT=beat;
+  sazView(esc(song.name),null);
+}
+function tuneDone(hits){
+  const song=customSong,n=song.notes.length;
+  if(song.best==null||hits>song.best)song.best=hits;
+  const earn=hits/n>=.7?2:1;
+  addGears(earn);save();
+  show(`<p class="win">Bravo!</p>
+  <p style="text-align:center;font-size:1.2rem">${esc(song.name)}: ${hits} / ${n} nota tuttu, ${earn} dişli kazandın.</p>
+  <div class="row c"><button class="btn" id="again" type="button">Tekrar çal</button><button class="ghost" id="back" type="button">Ezgilerime dön</button></div>`);
+  fx.clap();
+  $('#again').onclick=()=>playTune(song,BEAT);
+  $('#back').onclick=tunes;
 }
 
 /* ---------- NOTEBOOK ---------- */
@@ -983,6 +1060,7 @@ function testPanel(){
     <button class="ghost" data-t="patent" type="button">3. Patent</button>
     <button class="ghost" data-t="jury" type="button">4. Jüri</button>
     <button class="ghost" data-t="saz" type="button">5. Saz</button>
+    <button class="ghost" data-t="tunes" type="button">Kendi Ezgim</button>
     <button class="ghost" data-t="home" type="button">Normal ana ekran</button>
   </div>`);
   const out=t=>{$('#tOut').textContent=t;};
@@ -998,7 +1076,7 @@ function testPanel(){
     out('Dinliyorum, İngilizce bir şey söyle…');
     hear(x=>out(x===null?'Mikrofon izni verilmedi veya kullanılamıyor.':x?`Duyulan: ${x}`:'Ses duyulmadı, tekrar dene.'));
   };
-  const go={learn,depot,workshop,patent,jury,saz:sazGame,home};
+  const go={learn,depot,workshop,patent,jury,saz:sazGame,tunes,home};
   $('#tLv').onchange=e=>{L=+e.target.value;testSeed();};
   $$('[data-t]').forEach(b=>b.onclick=()=>go[b.dataset.t]());
 }
