@@ -181,6 +181,7 @@ input[type=text]{font:inherit;font-weight:800;font-size:1.3rem;padding:8px 10px;
 <script>
 'use strict';
 const REPORT_URL='';
+const TEST=location.hash==='#test';
 /* ---------- data ---------- */
 const INK='#16304e';
 const COLORS={red:{hex:'#ff5a4f',tr:'kırmızı'},blue:{hex:'#2f86ea',tr:'mavi'},yellow:{hex:'#ffc21f',tr:'sarı'}};
@@ -202,7 +203,7 @@ const STEPS=[['Depo','Dinleme'],['Atölye','Okuma'],['Patent','Yazma'],['Jüri',
 const KEY='mucit-atolyesi-v1';
 let S={gears:0,played:0,weak:{},book:[],log:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function save(){if(TEST)return;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 
 /* ---------- helpers ---------- */
 const $=(s,r=document)=>r.querySelector(s);
@@ -364,6 +365,7 @@ const phraseTr=p=>`${SIZES[p.size].tr} ${COLORS[p.color].tr} ${PARTS[p.type].tr}
 /* ---------- game state ---------- */
 let cur=null,exitArm=false,inGame=false;
 $('#homeBtn').addEventListener('click',()=>{
+  if(TEST){testPanel();return;}
   if(inGame&&!exitArm){exitArm=true;$('#homeBtn').textContent='Çıkmak için tekrar dokun';later(()=>{exitArm=false;$('#homeBtn').textContent='Mucit Atölyesi';},2600);return;}
   home();
 });
@@ -776,7 +778,7 @@ function deviceId(){
   return S.dev;
 }
 function sendReport(hits){
-  if(!REPORT_URL)return;
+  if(!REPORT_URL||TEST)return;
   const c=cur.st;
   const weak=Object.entries(S.weak).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).map(e=>e[0]+' '+e[1]).join(', ');
   S.out=S.out||[];
@@ -821,8 +823,49 @@ function book(){
   $('#back').onclick=home;
 }
 
+/* ---------- TEST SCREEN (open with #test; nothing is saved or sent) ---------- */
+function testSeed(){
+  const P=(type,color,size)=>({type,color,size});
+  cur={q:[],i:0,total:6,st:{dw:[],slow:0,hint:0,tile:0,typ:0,spoken:0,spokenAll:0},
+    parts:[P('wing','red','big'),P('wheel','blue','small'),P('spring','yellow','big'),P('lamp','red','small'),P('magnet','blue','big'),P('box','yellow','small')],
+    w:{body:'bicycle',sel:[0,1,2]},name:'The Flying Bicycle',no:'TEST',
+    lines:['It has a big red wing.','It has a small blue wheel.','It can jump.']};
+}
+function testPanel(){
+  testSeed();
+  show(`<h2>Test ekranı</h2>
+  <p>Burada yaptıkların kaydedilmez, rapor gönderilmez. Üstteki Mucit Atölyesi yazısı buraya geri getirir.</p>
+  <div class="row"><button class="btn" id="tSay" type="button">Sesi dene</button><button class="ghost" id="tSaz" type="button">Saz sesi</button><button class="ghost" id="tMic" type="button">Mikrofonu dene</button></div>
+  <p class="sheet" id="tOut" role="status" style="white-space:pre-line">Düğmelere bas, sonuç burada görünecek.</p>
+  <h2>Bölüme atla</h2>
+  <div class="row">
+    <button class="ghost" data-t="learn" type="button">Kelimeler</button>
+    <button class="ghost" data-t="depot" type="button">1. Depo</button>
+    <button class="ghost" data-t="workshop" type="button">2. Atölye</button>
+    <button class="ghost" data-t="patent" type="button">3. Patent</button>
+    <button class="ghost" data-t="jury" type="button">4. Jüri</button>
+    <button class="ghost" data-t="saz" type="button">5. Saz</button>
+    <button class="ghost" data-t="home" type="button">Normal ana ekran</button>
+  </div>`);
+  const out=t=>{$('#tOut').textContent=t;};
+  const info=()=>{pickVoice();return `Konuşma özelliği: ${hasTTS?'var':'yok'}\nCihazdaki ses sayısı: ${voiceCount}\nİngilizce ses: ${voice?voice.name:'bulunamadı'}`;};
+  $('#tSay').onclick=()=>{
+    out(info()+'\nSes deneniyor…');
+    let t0=Date.now();ttsBroken=false;
+    say('Hello! This is a sound test.',{done:()=>out(info()+`\nSonuç: ${ttsBroken?'ses başlamadı':'ses çalındı'} (${Math.round((Date.now()-t0)/100)/10} sn)`)});
+  };
+  $('#tSaz').onclick=()=>{pluck(220);out('La teli çalındı. Duyduysan oyun sesleri çalışıyor.');};
+  $('#tMic').onclick=()=>{
+    if(srOff){out('Mikrofon bu sayfada kullanılamıyor. Oyun "Sıra bende" yöntemiyle devam eder.');return;}
+    out('Dinliyorum, İngilizce bir şey söyle…');
+    hear(x=>out(x===null?'Mikrofon izni verilmedi veya kullanılamıyor.':x?`Duyulan: ${x}`:'Ses duyulmadı, tekrar dene.'));
+  };
+  const go={learn,depot,workshop,patent,jury,saz:sazGame,home};
+  $$('[data-t]').forEach(b=>b.onclick=()=>go[b.dataset.t]());
+}
+
 drawGears();
-home();
+if(TEST)testPanel();else home();
 flushReports();
 </script>
 </body>
