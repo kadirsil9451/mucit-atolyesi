@@ -237,7 +237,7 @@ function pickVoice(){
 }
 if(hasTTS){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice);}catch(e){}}
 const noVoice=()=>!hasTTS||ttsBroken||(voiceCount>0&&!voice);
-let ttsBroken=false,ttsUnlocked=false;
+let ttsBroken=false,ttsUnlocked=false,ttsBegan=false;
 function ttsFailed(text){
   ttsBroken=true;
   const n=$('#ttsnote');n.hidden=false;
@@ -263,7 +263,7 @@ function say(text,opt){
     if(id!==sayId)return;
     const u=new SpeechSynthesisUtterance(text);
     u.lang=voice?voice.lang.replace('_','-'):'en-US';if(voice)u.voice=voice;u.rate=rate;
-    u.onstart=()=>{began=true;ttsWorked();};
+    u.onstart=()=>{began=true;ttsBegan=true;ttsWorked();};
     u.onend=finish;u.onerror=finish;
     try{speechSynthesis.resume();speechSynthesis.speak(u);}catch(e){finish();}
   };
@@ -851,8 +851,8 @@ function testPanel(){
   const info=()=>{pickVoice();return `Konuşma özelliği: ${hasTTS?'var':'yok'}\nCihazdaki ses sayısı: ${voiceCount}\nİngilizce ses: ${voice?voice.name:'bulunamadı'}`;};
   $('#tSay').onclick=()=>{
     out(info()+'\nSes deneniyor…');
-    let t0=Date.now();ttsBroken=false;
-    say('Hello! This is a sound test.',{done:()=>out(info()+`\nSonuç: ${ttsBroken?'ses başlamadı':'ses çalındı'} (${Math.round((Date.now()-t0)/100)/10} sn)`)});
+    ttsBegan=false;
+    say('Hello! This is a sound test.',{done:()=>out(info()+`\nSonuç: ${ttsBegan?'ses çalındı':'ses başlamadı'}`)});
   };
   $('#tSaz').onclick=()=>{pluck(220);out('La teli çalındı. Duyduysan oyun sesleri çalışıyor.');};
   $('#tMic').onclick=()=>{
