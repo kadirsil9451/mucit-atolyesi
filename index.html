@@ -70,6 +70,16 @@ button:focus-visible,input:focus-visible,.lane:focus-visible{outline:3px solid v
 .map b{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;border:2px solid var(--brass);color:var(--brass);font-weight:800}
 .map span span{color:var(--chalk-dim)}
 
+.levels{display:grid;gap:8px}
+@media(min-width:620px){.levels{grid-template-columns:1fr 1fr}}
+.lv{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;background:var(--sheet);color:var(--ink);border-radius:8px;padding:8px 12px;min-height:62px;box-shadow:0 3px 0 rgba(8,25,48,.55)}
+.lv b{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--brass);font-weight:800;font-size:1.15rem}
+.lv strong{display:block;font-size:1.15rem;line-height:1.1}
+.lv small{display:block;font-family:var(--hand);font-size:1rem;color:var(--ink-soft);line-height:1.1}
+.lv em{font-style:normal;font-weight:800;font-size:.9rem;color:var(--ink-soft)}
+.lv.ok b{background:var(--ok)}.lv.ok em{color:var(--okdeep)}
+.lv[disabled]{background:#3a5f8e;color:#c7d8ee;box-shadow:none}.lv[disabled] small,.lv[disabled] em{color:#c7d8ee}.lv[disabled] b{background:#5d7ba0}
+select{font:inherit;font-weight:700;padding:10px;border-radius:10px;background:var(--sheet);color:var(--ink);border:0;max-width:100%}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(min-width:560px){.g4{grid-template-columns:repeat(4,minmax(0,1fr))}}
@@ -201,8 +211,9 @@ const STEPS=[['Depo','Dinleme'],['Atölye','Okuma'],['Patent','Yazma'],['Jüri',
 
 /* ---------- storage ---------- */
 const KEY='mucit-atolyesi-v1';
-let S={gears:0,played:0,weak:{},book:[],log:[]};
+let S={gears:0,played:0,weak:{},book:[],log:[],done:[]};
 try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}
+if(S.played>0&&!S.done.length)S.done=[0];
 function save(){if(TEST)return;try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 
 /* ---------- helpers ---------- */
@@ -325,6 +336,7 @@ const fHz=(s,off)=>STRINGS[s].f*Math.pow(2,off/12);
 /* ---------- drawings ---------- */
 function partG(type,color){
   const c=COLORS[color].hex,I=INK,s=`stroke="${I}" stroke-width="4" stroke-linejoin="round"`;
+  if(ICONS[type])return `<g class="a-box">${ICONS[type](c,s,'#f5f8fe',I)}</g>`;
   switch(type){
     case 'wheel':return `<g class="a-wheel"><circle cx="50" cy="50" r="42" fill="${c}" ${s}/><circle cx="50" cy="50" r="26" fill="#f5f8fe" ${s}/><path d="M50 24V76M24 50H76M32 32L68 68M68 32L32 68" stroke="${I}" stroke-width="3"/><circle cx="50" cy="50" r="7" fill="${c}" ${s}/></g>`;
     case 'wing':return `<g class="a-wing"><path d="M8 66C16 22 66 8 94 18C88 32 88 38 80 45C80 54 74 59 65 60C62 69 53 71 45 71C32 79 18 78 8 66Z" fill="${c}" ${s}/><path d="M24 58C40 38 60 28 80 24M38 62C50 50 62 44 74 40M18 50C30 34 46 24 62 19" fill="none" stroke="${I}" stroke-width="3" stroke-linecap="round"/></g>`;
@@ -362,6 +374,124 @@ const vida=t=>`<div class="vida">${VIDA}<p class="bubble" id="bubble">${t}</p></
 const phrase=p=>`${p.size} ${p.color} ${p.type}`;
 const phraseTr=p=>`${SIZES[p.size].tr} ${COLORS[p.color].tr} ${PARTS[p.type].tr}`;
 
+/* ---------- levels ---------- */
+Object.assign(COLORS,{green:{hex:'#2fb36b',tr:'yeşil'},purple:{hex:'#8a5be0',tr:'mor'},pink:{hex:'#ff7fb5',tr:'pembe'}});
+Object.assign(SIZES,{little:{k:.6,tr:'küçük'},large:{k:1,tr:'büyük'},tiny:{k:.6,tr:'minicik'},huge:{k:1,tr:'kocaman'}});
+Object.assign(BODIES,{robot:{tr:'robot',En:'Robot'},car:{tr:'araba',En:'Car'},boat:{tr:'tekne',En:'Boat'},house:{tr:'ev',En:'House'},table:{tr:'masa',En:'Table'}});
+const CANM={wheel:'yuvarlanabilir',wing:'uçabilir',lamp:'parlayabilir',spring:'zıplayabilir',magnet:'metal çekebilir',propeller:'dönebilir',engine:'hızlı gidebilir',box:'oyuncak taşıyabilir'};
+Object.keys(CANM).forEach(k=>PARTS[k].m=CANM[k]);
+const can=(tr,pre,word,post,m)=>({tr,pre:'It can '+pre,word,post,m});
+Object.assign(PARTS,{
+  spoon:can('kaşık','','stir',' soup.','çorba karıştırabilir'),fork:can('çatal','','lift',' food.','yemek kaldırabilir'),cup:can('fincan','','pour',' tea.','çay dökebilir'),pot:can('tencere','','cook',' soup.','çorba pişirebilir'),
+  pencil:can('kalem','','write',' my name.','adımı yazabilir'),ruler:can('cetvel','','draw',' lines.','çizgi çizebilir'),book:can('kitap','','read',' stories.','hikâye okuyabilir'),clock:can('saat','','tell',' the time.','saati söyleyebilir'),
+  cat:can('kedi','','climb',' trees.','ağaca tırmanabilir'),bird:can('kuş','','sing',' songs.','şarkı söyleyebilir'),fish:can('balık','','swim',' fast.','hızlı yüzebilir'),rabbit:can('tavşan','','run',' fast.','hızlı koşabilir'),
+  drum:can('davul','','make',' a rhythm.','ritim yapabilir'),flute:can('flüt','','whistle','.','ıslık çalabilir'),bell:can('zil','','ring',' loudly.','yüksek sesle çalabilir'),saz:can('saz','','play',' folk songs.','türkü çalabilir'),
+  rocket:can('roket','','go',' to space.','uzaya gidebilir'),star:can('yıldız','','shine',' at night.','gece parlayabilir'),moon:can('ay','','glow',' in the dark.','karanlıkta ışıldayabilir'),planet:can('gezegen','','turn',' around the Sun.','Güneş\'in etrafında dönebilir'),
+  anchor:can('çapa','','stop',' the ship.','gemiyi durdurabilir'),shell:can('deniz kabuğu','','hide',' in the sand.','kuma saklanabilir'),crab:can('yengeç','','walk',' sideways.','yan yan yürüyebilir'),whale:can('balina','','dive',' deep.','derine dalabilir'),
+  flower:can('çiçek','','smell',' nice.','güzel kokabilir'),tree:can('ağaç','','give',' shade.','gölge verebilir'),leaf:can('yaprak','','clean',' the air.','havayı temizleyebilir'),bee:can('arı','','make',' honey.','bal yapabilir'),
+  ball:can('top','','score',' goals.','gol atabilir'),helmet:can('kask','','keep',' you safe.','seni koruyabilir'),medal:can('madalya','','win',' prizes.','ödül kazanabilir'),racket:can('raket','','hit',' the ball.','topa vurabilir'),
+  bus:can('otobüs','','carry',' people.','insan taşıyabilir'),bridge:can('köprü','','cross',' rivers.','nehirleri geçebilir'),map:can('harita','','find',' the way.','yolu bulabilir'),key:can('anahtar','','open',' doors.','kapıları açabilir'),
+  camera:can('fotoğraf makinesi','','take',' photos.','fotoğraf çekebilir'),battery:can('pil','','charge',' phones.','telefon şarj edebilir'),screen:can('ekran','','show',' films.','film gösterebilir'),antenna:can('anten','','send',' messages.','mesaj gönderebilir')
+});
+const ICONS={
+  spoon:(c,s)=>`<ellipse cx="50" cy="28" rx="19" ry="25" fill="${c}" ${s}/><rect x="45" y="50" width="10" height="44" rx="5" fill="${c}" ${s}/>`,
+  fork:(c,s)=>`<path d="M30 8V38Q30 52 44 54V94H56V54Q70 52 70 38V8H61V36H54V8H46V36H39V8Z" fill="${c}" ${s}/>`,
+  cup:(c,s,w,I)=>`<path d="M74 40H84Q94 40 94 52T84 66H72" fill="none" stroke="${I}" stroke-width="6"/><path d="M18 30H76V72Q76 88 60 88H34Q18 88 18 72Z" fill="${c}" ${s}/><path d="M36 20Q30 13 36 6M56 20Q50 13 56 6" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/>`,
+  pot:(c,s,w)=>`<rect x="4" y="52" width="16" height="10" rx="4" fill="${w}" ${s}/><rect x="80" y="52" width="16" height="10" rx="4" fill="${w}" ${s}/><path d="M18 44H82V80Q82 90 72 90H28Q18 90 18 80Z" fill="${c}" ${s}/><path d="M12 44Q50 12 88 44Z" fill="${w}" ${s}/><circle cx="50" cy="22" r="7" fill="${c}" ${s}/>`,
+  pencil:(c,s,w,I)=>`<path d="M24 66L68 22L84 38L40 82Z" fill="${c}" ${s}/><path d="M24 66L40 82L12 94Z" fill="${w}" ${s}/><path d="M68 22L76 14Q80 11 84 14L92 22Q95 26 92 30L84 38Z" fill="${w}" ${s}/><path d="M12 94L18 91L15 88Z" fill="${I}"/>`,
+  ruler:(c,s,w,I)=>`<rect x="6" y="32" width="88" height="36" rx="3" fill="${c}" ${s}/><path d="M18 34V50M30 34V44M42 34V50M54 34V44M66 34V50M78 34V44" stroke="${I}" stroke-width="3.5"/>`,
+  book:(c,s,w,I)=>`<path d="M50 24Q32 12 8 18V82Q32 76 50 88Q68 76 92 82V18Q68 12 50 24Z" fill="${c}" ${s}/><path d="M50 24V88M18 34Q30 32 40 38M18 50Q30 48 40 54M82 34Q70 32 60 38M82 50Q70 48 60 54" fill="none" stroke="${I}" stroke-width="3.5" stroke-linecap="round"/>`,
+  clock:(c,s,w,I)=>`<circle cx="50" cy="50" r="42" fill="${c}" ${s}/><circle cx="50" cy="50" r="30" fill="${w}" ${s}/><path d="M50 50V30M50 50L64 58" stroke="${I}" stroke-width="5" stroke-linecap="round"/>`,
+  cat:(c,s,w,I)=>`<path d="M16 10L36 28Q50 24 64 28L84 10L86 54Q86 90 50 90Q14 90 14 54Z" fill="${c}" ${s}/><circle cx="36" cy="50" r="6" fill="${I}"/><circle cx="64" cy="50" r="6" fill="${I}"/><path d="M50 60L44 66H56ZM50 66V72M4 58L26 62M4 72L26 68M96 58L74 62M96 72L74 68" fill="${I}" stroke="${I}" stroke-width="3" stroke-linecap="round"/>`,
+  bird:(c,s,w,I)=>`<path d="M84 34L98 42L84 48Z" fill="#ffc21f" ${s}/><ellipse cx="46" cy="60" rx="36" ry="26" fill="${c}" ${s}/><circle cx="68" cy="38" r="20" fill="${c}" ${s}/><circle cx="72" cy="34" r="5" fill="${I}"/><path d="M22 58Q40 44 58 58Q44 80 22 58Z" fill="${w}" ${s}/>`,
+  fish:(c,s,w,I)=>`<path d="M70 50L96 26V74Z" fill="${c}" ${s}/><path d="M6 50Q38 10 78 50Q38 90 6 50Z" fill="${c}" ${s}/><circle cx="28" cy="44" r="6" fill="${I}"/><path d="M46 34Q56 50 46 66" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/>`,
+  rabbit:(c,s,w,I)=>`<ellipse cx="36" cy="26" rx="11" ry="24" fill="${c}" ${s}/><ellipse cx="64" cy="26" rx="11" ry="24" fill="${c}" ${s}/><circle cx="50" cy="64" r="30" fill="${c}" ${s}/><circle cx="39" cy="58" r="5" fill="${I}"/><circle cx="61" cy="58" r="5" fill="${I}"/><path d="M45 70H55L50 76Z" fill="${I}" stroke="${I}" stroke-width="2"/>`,
+  drum:(c,s,w,I)=>`<path d="M12 30V74Q50 96 88 74V30Z" fill="${c}" ${s}/><path d="M12 34L30 80L50 36L70 80L88 34" fill="none" stroke="${I}" stroke-width="4"/><ellipse cx="50" cy="30" rx="38" ry="14" fill="${w}" ${s}/>`,
+  flute:(c,s,w,I)=>`<rect x="4" y="40" width="92" height="20" rx="9" fill="${c}" ${s}/><g fill="${I}"><circle cx="24" cy="50" r="4"/><circle cx="42" cy="50" r="4"/><circle cx="56" cy="50" r="4"/><circle cx="70" cy="50" r="4"/><circle cx="84" cy="50" r="4"/></g>`,
+  bell:(c,s,w)=>`<circle cx="50" cy="84" r="9" fill="${w}" ${s}/><path d="M50 10Q24 12 24 46Q22 68 10 78H90Q78 68 76 46Q76 12 50 10Z" fill="${c}" ${s}/>`,
+  saz:(c,s,w,I)=>`<path d="M42 58L90 10" stroke="${I}" stroke-width="13" stroke-linecap="round"/><path d="M42 58L90 10" stroke="${w}" stroke-width="6" stroke-linecap="round"/><path d="M12 92C-2 66 14 36 40 36C50 36 64 50 64 60C64 86 34 102 12 92Z" fill="${c}" ${s}/><path d="M22 80L56 46M28 84L60 52" stroke="${I}" stroke-width="2.5"/><path d="M78 8L72 2M92 22L98 28" stroke="${I}" stroke-width="5" stroke-linecap="round"/>`,
+  rocket:(c,s,w)=>`<path d="M40 66L50 96L60 66Z" fill="#ffc21f" ${s}/><path d="M30 46L12 78H32ZM70 46L88 78H68Z" fill="${w}" ${s}/><path d="M50 4Q74 26 70 68H30Q26 26 50 4Z" fill="${c}" ${s}/><circle cx="50" cy="38" r="10" fill="${w}" ${s}/>`,
+  star:(c,s)=>`<path d="M50 6L62 38H96L68 58L79 92L50 72L21 92L32 58L4 38H38Z" fill="${c}" ${s}/>`,
+  moon:(c,s)=>`<path d="M66 8A43 43 0 1 0 66 92A36 36 0 1 1 66 8Z" fill="${c}" ${s}/>`,
+  planet:(c,s,w,I)=>`<circle cx="50" cy="50" r="28" fill="${c}" ${s}/><ellipse cx="50" cy="50" rx="47" ry="13" transform="rotate(-20 50 50)" fill="none" stroke="${I}" stroke-width="8"/><ellipse cx="50" cy="50" rx="47" ry="13" transform="rotate(-20 50 50)" fill="none" stroke="${w}" stroke-width="3"/>`,
+  anchor:(c,s,w,I)=>{const d='M50 28V90M30 42H70M12 62Q16 90 50 90Q84 90 88 62';return `<circle cx="50" cy="16" r="10" fill="none" stroke="${I}" stroke-width="12"/><circle cx="50" cy="16" r="10" fill="none" stroke="${c}" stroke-width="5"/><path d="${d}" fill="none" stroke="${I}" stroke-width="14" stroke-linecap="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round"/>`;},
+  shell:(c,s,w,I)=>`<path d="M50 90L10 46Q14 12 50 10Q86 12 90 46Z" fill="${c}" ${s}/><path d="M50 90L26 22M50 90L50 12M50 90L74 22" stroke="${I}" stroke-width="3.5"/>`,
+  crab:(c,s,w,I)=>`<path d="M26 62L6 50V30M74 62L94 50V30M24 72L6 84M76 72L94 84M30 80L18 94M70 80L82 94M40 42V26M60 42V26" fill="none" stroke="${I}" stroke-width="5" stroke-linecap="round"/><circle cx="6" cy="24" r="9" fill="${c}" ${s}/><circle cx="94" cy="24" r="9" fill="${c}" ${s}/><ellipse cx="50" cy="62" rx="30" ry="22" fill="${c}" ${s}/><circle cx="40" cy="24" r="5" fill="${I}"/><circle cx="60" cy="24" r="5" fill="${I}"/>`,
+  whale:(c,s,w,I)=>`<path d="M6 58Q8 26 46 26Q78 26 84 54L96 36V70L84 64Q74 86 42 86Q10 84 6 58Z" fill="${c}" ${s}/><circle cx="26" cy="52" r="5" fill="${I}"/><path d="M44 22V8M44 10Q36 2 30 8M44 10Q52 2 58 8" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/><path d="M12 68Q30 76 46 66" fill="none" stroke="${I}" stroke-width="3.5"/>`,
+  flower:(c,s,w)=>`<g fill="${c}" ${s}><circle cx="50" cy="22" r="17"/><circle cx="77" cy="42" r="17"/><circle cx="67" cy="74" r="17"/><circle cx="33" cy="74" r="17"/><circle cx="23" cy="42" r="17"/></g><circle cx="50" cy="51" r="14" fill="${w}" ${s}/>`,
+  tree:(c,s,w)=>`<rect x="41" y="58" width="18" height="38" fill="${w}" ${s}/><path d="M50 4C76 4 90 24 86 42C94 62 72 74 50 70C28 74 6 62 14 42C10 24 24 4 50 4Z" fill="${c}" ${s}/>`,
+  leaf:(c,s,w,I)=>`<path d="M12 90Q6 18 92 8Q94 88 12 90Z" fill="${c}" ${s}/><path d="M12 90L72 30M36 66V44M36 66H58M54 48V32M54 48H72" fill="none" stroke="${I}" stroke-width="3.5" stroke-linecap="round"/>`,
+  bee:(c,s,w,I)=>`<ellipse cx="38" cy="26" rx="14" ry="20" transform="rotate(-20 38 26)" fill="${w}" ${s}/><ellipse cx="62" cy="26" rx="14" ry="20" transform="rotate(20 62 26)" fill="${w}" ${s}/><ellipse cx="50" cy="62" rx="40" ry="26" fill="${c}" ${s}/><path d="M38 38V86M54 36V88M70 42V82" stroke="${I}" stroke-width="7"/><circle cx="22" cy="58" r="4" fill="${I}"/>`,
+  ball:(c,s,w,I)=>`<circle cx="50" cy="50" r="42" fill="${c}" ${s}/><path d="M50 32L67 45L61 65H39L33 45Z" fill="${w}" ${s}/><path d="M50 32V10M67 45L88 38M61 65L74 84M39 65L26 84M33 45L12 38" stroke="${I}" stroke-width="4"/>`,
+  helmet:(c,s,w)=>`<path d="M10 72Q6 14 52 12Q92 14 90 58H62V82H26Q12 82 10 72Z" fill="${c}" ${s}/><path d="M62 58H98V70H62Z" fill="${w}" ${s}/>`,
+  medal:(c,s,w)=>`<path d="M26 4H46L58 42H42ZM74 4H54L42 42H58Z" fill="${w}" ${s}/><circle cx="50" cy="66" r="28" fill="${c}" ${s}/><path d="M50 50L55 62H67L57 70L61 82L50 75L39 82L43 70L33 62H45Z" fill="${w}" ${s}/>`,
+  racket:(c,s,w,I)=>`<rect x="44" y="64" width="12" height="32" rx="4" fill="${c}" ${s}/><ellipse cx="50" cy="36" rx="30" ry="32" fill="${w}" stroke="${c}" stroke-width="9"/><path d="M36 10V62M50 6V66M64 10V62M22 24H78M20 38H80M24 52H76" stroke="${I}" stroke-width="2.5"/>`,
+  bus:(c,s,w,I)=>`<rect x="6" y="18" width="88" height="60" rx="9" fill="${c}" ${s}/><rect x="16" y="28" width="20" height="20" fill="${w}" ${s}/><rect x="40" y="28" width="20" height="20" fill="${w}" ${s}/><rect x="64" y="28" width="20" height="20" fill="${w}" ${s}/><circle cx="28" cy="80" r="11" fill="${I}"/><circle cx="72" cy="80" r="11" fill="${I}"/>`,
+  bridge:(c,s,w,I)=>`<path d="M4 44H96V88H80Q78 60 50 60Q22 60 20 88H4Z" fill="${c}" ${s}/><path d="M4 44V24H96V44M22 24V44M41 24V44M60 24V44M78 24V44" fill="none" stroke="${I}" stroke-width="4"/>`,
+  map:(c,s,w,I)=>`<path d="M8 20L36 10L64 20L92 10V80L64 90L36 80L8 90Z" fill="${c}" ${s}/><path d="M36 10V80M64 20V90" stroke="${I}" stroke-width="3"/><path d="M18 70Q34 40 50 56T78 30" fill="none" stroke="${w}" stroke-width="5" stroke-dasharray="7 6"/><path d="M72 22L84 36M84 22L72 36" stroke="${I}" stroke-width="5" stroke-linecap="round"/>`,
+  key:(c,s,w)=>`<path d="M46 43H94V57H86V70H74V57H66V68H54V57H46Z" fill="${c}" ${s}/><circle cx="28" cy="50" r="24" fill="${c}" ${s}/><circle cx="22" cy="50" r="9" fill="${w}" ${s}/>`,
+  camera:(c,s,w,I)=>`<rect x="34" y="14" width="30" height="18" fill="${c}" ${s}/><rect x="6" y="28" width="88" height="56" rx="9" fill="${c}" ${s}/><circle cx="50" cy="56" r="20" fill="${w}" ${s}/><circle cx="50" cy="56" r="9" fill="${I}"/>`,
+  battery:(c,s,w)=>`<rect x="86" y="40" width="10" height="20" fill="${w}" ${s}/><rect x="4" y="26" width="82" height="48" rx="7" fill="${c}" ${s}/><path d="M50 30L32 54H46L40 72L62 46H48Z" fill="${w}" ${s}/>`,
+  screen:(c,s,w,I)=>`<rect x="6" y="12" width="88" height="62" rx="6" fill="${c}" ${s}/><rect x="16" y="22" width="68" height="42" fill="${w}" ${s}/><path d="M42 32L62 43L42 54Z" fill="${I}"/><path d="M50 74V90M30 90H70" stroke="${I}" stroke-width="6" stroke-linecap="round"/>`,
+  antenna:(c,s,w,I)=>`<path d="M50 62V92M32 92H68" stroke="${I}" stroke-width="6" stroke-linecap="round"/><path d="M12 28Q36 86 84 52Z" fill="${c}" ${s}/><path d="M48 40L66 20" stroke="${I}" stroke-width="4"/><circle cx="68" cy="18" r="5" fill="${w}" ${s}/><path d="M78 10Q86 14 86 24M86 2Q98 10 96 26" fill="none" stroke="${I}" stroke-width="4" stroke-linecap="round"/>`
+};
+Object.assign(BODYG,{
+  robot:`<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="#fff"><path d="M120 8V22M60 90H40V128M180 90H200V128M92 136V160M148 136V160" fill="none"/><rect x="82" y="22" width="76" height="44" rx="10"/><rect x="66" y="66" width="108" height="72" rx="10"/><circle cx="104" cy="44" r="5" fill="${INK}"/><circle cx="136" cy="44" r="5" fill="${INK}"/></g>`,
+  car:`<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" fill="#fff"><path d="M16 130V102Q16 90 36 88L68 58H156L188 88Q224 90 224 110V130Z"/><path d="M84 68H112V90H62ZM122 68H150L172 90H122Z"/><circle cx="68" cy="134" r="24"/><circle cx="174" cy="134" r="24"/></g>`,
+  boat:`<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="#fff"><path d="M120 26V110" fill="none"/><path d="M126 30V100H194Z"/><path d="M14 112H226L198 156H42Z"/><path d="M24 164Q44 152 64 164T104 164T144 164T184 164T224 164" fill="none" stroke-width="4"/></g>`,
+  house:`<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" fill="#fff"><rect x="52" y="84" width="136" height="78"/><path d="M34 88L120 24L206 88Z"/><rect x="104" y="116" width="32" height="46"/><rect x="66" y="102" width="26" height="24"/><rect x="148" y="102" width="26" height="24"/></g>`,
+  table:`<g stroke="${INK}" stroke-width="6" stroke-linejoin="round" fill="#fff"><rect x="42" y="100" width="14" height="60"/><rect x="184" y="100" width="14" height="60"/><rect x="24" y="86" width="192" height="16" rx="3"/></g>`
+});
+Object.assign(SLOTS,{
+  robot:[{x:6,y:6,s:.5},{x:184,y:6,s:.5},{x:96,y:78,s:.48}],
+  car:[{x:90,y:6,s:.48},{x:6,y:32,s:.46},{x:188,y:32,s:.46}],
+  boat:[{x:40,y:46,s:.6},{x:194,y:8,s:.44},{x:6,y:6,s:.4}],
+  house:[{x:97,y:40,s:.46},{x:0,y:26,s:.46},{x:192,y:26,s:.46}],
+  table:[{x:36,y:32,s:.52},{x:94,y:24,s:.6},{x:158,y:32,s:.52}]
+});
+const SC={U:[0,1.5,3,5,7,8,10,12],K:[0,1,3,5,7,8,10,12],H:[0,1,4,5,7,8,10,12],R:[-2,0,1.5,3,5,7,9,10]};
+const RH=[[0,1,2,2.5,3,4],[0,.5,1,2,3,4],[0,1,1.5,2,3,4],[0,1,2,3,3.5,4]];
+const L0=['small','big'],L1=['little','large'],L2=['tiny','huge'];
+const LEVELS=[
+ {t:'Mucit Garajı',items:['wheel','wing','lamp','spring','magnet','propeller','engine','box'],bodies:['bicycle','shoe','bed'],colors:['red','blue','yellow'],sizes:L0,frames:['I need a','Please find a','Bring me a'],t1:'It has a {a} {i}.',t2:'It has a {a} {i}.'},
+ {t:'Çılgın Mutfak',items:['spoon','fork','cup','pot'],bodies:['table','robot','car'],colors:['red','blue','green'],sizes:L0,frames:['I want a','Can I have a'],t1:'It has a {a} {i}.',t2:'There is a {a} {i} on it.',sc:'K',mel:[[0,1,2,3,2,1],[3,4,3,2,1,2],[1,2,1,0,1,0]]},
+ {t:'Sihirli Okul',items:['pencil','ruler','book','clock'],bodies:['table','robot','bicycle'],colors:['yellow','blue','pink'],sizes:L1,frames:['Find the','Show me the'],t1:'My machine has a {a} {i}.',t2:'This {a} {i} is very useful.',sc:'U',mel:[[2,3,4,3,2,1],[4,5,4,3,2,3],[2,1,2,1,0,0]]},
+ {t:'Hayvan Dostları',items:['cat','bird','fish','rabbit'],bodies:['house','bicycle','boat'],colors:['red','green','purple'],sizes:L0,frames:['I can see a','Look! There is a'],t1:'A {a} {i} lives in it.',t2:'It is a home for a {a} {i}.',sc:'H',mel:[[0,1,2,1,2,3],[3,4,5,4,3,2],[2,1,3,2,1,0]]},
+ {t:'Müzik Odası',items:['drum','flute','bell','saz'],bodies:['table','robot','car'],colors:['blue','yellow','purple'],sizes:L1,frames:['Give me a','I am looking for a'],t1:'It has a {a} {i}.',t2:'You can hear a {a} {i}.',sc:'U',mel:[[0,2,3,2,3,4],[5,4,3,4,3,2],[3,2,1,2,1,0]],typed2:1},
+ {t:'Uzay İstasyonu',items:['rocket','star','moon','planet'],bodies:['robot','car','house'],colors:['red','yellow','purple','blue'],sizes:L2,frames:['We need a','Get me a'],t1:'It has a {a} {i} on top.',t2:'There is a {a} {i} in the sky.',sc:'R',mel:[[1,2,3,4,3,2],[4,5,6,5,4,3],[3,2,1,2,1,0]],typed2:1},
+ {t:'Deniz Altı',items:['anchor','shell','crab','whale'],bodies:['boat','robot','shoe'],colors:['pink','blue','green','red'],sizes:L2,frames:['Can you find a','Dive and bring a'],t1:'It carries a {a} {i}.',t2:'Under it, there is a {a} {i}.',sc:'K',mel:[[4,3,2,3,2,1],[2,3,4,5,4,3],[2,1,0,1,1,0]],typed2:1},
+ {t:'Bahçe Laboratuvarı',items:['flower','tree','leaf','bee'],bodies:['house','table','bicycle'],colors:['yellow','green','pink','purple'],sizes:L1,frames:['Can you give me a','I would like a'],t1:'I put a {a} {i} on it.',t2:'It has a {a} {i} on the side.',sc:'R',mel:[[0,1,2,3,4,3],[2,3,5,4,3,2],[1,2,1,0,1,0]],typed2:1},
+ {t:'Spor Salonu',items:['ball','helmet','medal','racket'],bodies:['shoe','robot','car'],colors:['red','blue','yellow','green'],sizes:L0,frames:['Pass me a','Our team needs a'],t1:'I love this {a} {i}.',t2:'It has a {a} {i} in the front.',sc:'H',mel:[[2,1,0,1,2,3],[3,5,4,3,4,2],[2,3,2,1,1,0]],typed2:1},
+ {t:'Akıllı Şehir',items:['bus','bridge','map','key'],bodies:['car','bicycle','house'],colors:['pink','blue','green','purple'],sizes:L2,frames:['The city needs a','Let us build a'],t1:'Look at this {a} {i}.',t2:'It has a {a} {i} at the back.',sc:'U',mel:[[3,4,5,4,3,2],[5,6,5,4,3,4],[3,2,1,2,1,0]],typed2:1},
+ {t:'Gelecek Evi',items:['camera','battery','screen','antenna'],bodies:['robot','house','bed'],colors:['red','yellow','green','pink','purple','blue'],sizes:L2,frames:['In the future, I need a','Tomorrow, bring me a'],t1:'Every morning it brings a {a} {i}.',t2:'It always has a {a} {i}.',sc:'H',mel:[[0,1,2,3,4,5],[5,4,3,2,3,4],[3,2,1,0,1,0]],typed2:1}
+];
+let L=0;
+const level=()=>LEVELS[L];
+const PCN={0:'Do',1:'Do#',2:'Re',3:'Mib',4:'Mi',5:'Fa',6:'Fa#',7:'Sol',8:'Lab',9:'La',10:'Sib',10.5:'Si',11:'Si'};
+function chartFor(i){
+  const lv=LEVELS[i];
+  if(!lv.mel)return CHART_1;
+  const sc=SC[lv.sc],out=[];
+  lv.mel.forEach((ph,n)=>{
+    const rh=RH[(i+n)%RH.length];
+    ph.forEach((deg,k)=>{
+      const p=sc[deg];let s=2,off=p;
+      if(p<0){s=0;off=p+2;}
+      else if(n===1&&FRETS.includes(p+2)){s=0;off=p+2;}
+      else if(n===2&&FRETS.includes(p+7)){s=1;off=p+7;}
+      out.push([n*8+rh[k],s,off,PCN[(9+p+24)%12]]);
+    });
+  });
+  return out;
+}
+function startLevel(i){L=i;learn();}
+function pool(){
+  const lv=level();
+  if(L===0)return shuffle(lv.items).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,6);
+  const old=shuffle(LEVELS.slice(0,L).flatMap(x=>x.items)).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,2);
+  return [...lv.items,...old];
+}
+
 /* ---------- game state ---------- */
 let cur=null,exitArm=false,inGame=false;
 $('#homeBtn').addEventListener('click',()=>{
@@ -372,27 +502,24 @@ $('#homeBtn').addEventListener('click',()=>{
 
 /* ---------- HOME ---------- */
 function home(){
+  const nextI=Math.min(LEVELS.findIndex((l,i)=>!S.done.includes(i))<0?LEVELS.length-1:LEVELS.findIndex((l,i)=>!S.done.includes(i)),LEVELS.length-1);
   const sample=[{type:'wing',color:'blue',size:'big'},{type:'wheel',color:'red',size:'small'},{type:'lamp',color:'yellow',size:'small'}];
   show(`
   <h1>Mucit<br>Atölyesi</h1>
   <p style="font-size:1.2rem">İcat et, İngilizce anlat, sazınla çalıştır.</p>
   <div class="sheet draw">${invSVG('bicycle',sample)}
     <p class="cap">Örnek icat: The Flying Bicycle.<br>It has a big blue wing. It can fly.</p></div>
-  <ul class="ul map">
-    <li><b>1</b><span>Depo <span>· robotun istediği parçayı dinleyip bul</span></span></li>
-    <li><b>2</b><span>Atölye <span>· parçaları birleştir, icadını kur</span></span></li>
-    <li><b>3</b><span>Patent <span>· icadını İngilizce yaz</span></span></li>
-    <li><b>4</b><span>Jüri <span>· cümlelerini yüksek sesle söyle</span></span></li>
-    <li><b>5</b><span>Saz <span>· ritmi tuttur, icadın çalışsın</span></span></li>
-  </ul>
   <div class="row">
-    <button class="btn" id="go" type="button">Yeni icata başla</button>
+    <button class="btn" id="go" type="button">${S.done.length>=LEVELS.length?'Son bölümü yeniden oyna':`${nextI+1}. bölüme başla`}</button>
     <button class="ghost" id="bk" type="button">Mucit Defteri (${S.book.length})</button>
     <button class="ghost" id="fs" type="button">Serbest saz</button>
   </div>
+  <h2>Bölümler</h2>
+  <div class="levels">${LEVELS.map((l,i)=>{const open=i===0||S.done.includes(i-1)||TEST,ok=S.done.includes(i);return `<button class="lv${ok?' ok':''}" data-l="${i}" type="button" ${open?'':'disabled'}><b>${i+1}</b><span><strong>${l.t}</strong><small>${open?l.items.slice(0,4).join(', '):'Önceki bölümü bitir'}</small></span><em>${ok?'Bitti':open?'Oyna':'Kilitli'}</em></button>`;}).join('')}</div>
   <div class="row"${REPORT_URL?' hidden':''}><button class="ghost" id="rp" type="button">İlerleme raporu</button></div>
   ${noVoice()?'<p class="note">Bu cihazda İngilizce ses bulunamadı. Cümleler ekranda yazı olarak görünecek.</p>':''}`);
-  $('#go').onclick=()=>{say('Hello, inventor!');learn();};
+  $('#go').onclick=()=>{say('Hello, inventor!');startLevel(nextI);};
+  $$('.lv').forEach(b=>b.onclick=()=>startLevel(+b.dataset.l));
   $('#rp').onclick=report;
   $('#bk').onclick=book;
   $('#fs').onclick=freeSaz;
@@ -400,23 +527,23 @@ function home(){
 
 /* ---------- LEARN ---------- */
 function learn(){
-  const heard=new Set();const keys=Object.keys(PARTS);const seen=S.played>0;
-  show(`${vida('Ben robot Vida. Parçalara dokun, adlarını İngilizce dinle.')}
-  <div class="grid g4">${keys.map(k=>`<button class="card" data-k="${k}" type="button">${iconSVG(k,k==='wing'||k==='magnet'?'red':k==='lamp'||k==='engine'?'yellow':'blue')}<span class="en">${k}</span><span class="tr">${PARTS[k].tr}</span></button>`).join('')}</div>
-  <div class="row"><button class="btn" id="next" type="button" ${seen?'':'disabled'}>Depoya git</button><span class="tag" id="cnt">0 / 8 dinlendi</span></div>`,0);
+  const heard=new Set(),lv=level(),keys=lv.items,seen=S.done.includes(L)||TEST;
+  show(`${vida(`${L+1}. bölüm: ${lv.t}. Parçalara dokun, adlarını İngilizce dinle.`)}
+  <div class="grid g4">${keys.map(k=>`<button class="card" data-k="${k}" type="button">${iconSVG(k,lv.colors[keys.indexOf(k)%lv.colors.length])}<span class="en">${k}</span><span class="tr">${PARTS[k].tr}</span></button>`).join('')}</div>
+  <div class="row"><button class="btn" id="next" type="button" ${seen?'':'disabled'}>Depoya git</button><span class="tag" id="cnt">0 / ${keys.length} dinlendi</span></div>`,0);
   $$('.card').forEach(b=>b.onclick=()=>{
     say(b.dataset.k);b.classList.add('heard');heard.add(b.dataset.k);
-    $('#cnt').textContent=`${heard.size} / 8 dinlendi`;
-    if(heard.size===8)$('#next').disabled=false;
+    $('#cnt').textContent=`${heard.size} / ${keys.length} dinlendi`;
+    if(heard.size===keys.length)$('#next').disabled=false;
   });
   $('#next').onclick=depot;
 }
 
 /* ---------- DEPOT (listening) ---------- */
 function makeOptions(t){
-  const keys=shuffle(Object.keys(PARTS).filter(k=>k!==t.type));
-  const altC=shuffle(Object.keys(COLORS).filter(c=>c!==t.color));
-  const altS=t.size==='small'?'big':'small';
+  const keys=shuffle(cur.pool.filter(k=>k!==t.type)),lv=level();
+  const altC=shuffle(lv.colors.filter(c=>c!==t.color));
+  const altS=lv.sizes.find(x=>x!==t.size);
   return shuffle([
     {...t},
     {type:t.type,color:altC[0],size:t.size},
@@ -427,15 +554,15 @@ function makeOptions(t){
   ]);
 }
 function depot(){
-  const types=shuffle(Object.keys(PARTS)).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,6);
-  const q=shuffle(types).map(type=>({type,color:pick(Object.keys(COLORS)),size:pick(['small','big']),retry:false}));
-  cur={q,parts:[],i:0,total:6,st:{dw:[],slow:0,hint:0,tile:0,typ:0,spoken:0,spokenAll:0}};
+  const types=pool(),lv=level();
+  const q=shuffle(types).map(type=>({type,color:pick(lv.colors),size:pick(lv.sizes),retry:false}));
+  cur={q,pool:types,parts:[],i:0,total:6,st:{dw:[],slow:0,hint:0,tile:0,typ:0,spoken:0,spokenAll:0}};
   round();
 }
 function round(){
   if(cur.i>=cur.q.length){workshop();return;}
   const t=cur.q[cur.i],opts=makeOptions(t);
-  const frame=pick(['I need a','Please find a','Bring me a']);
+  const frame=pick(level().frames);
   const text=`${frame} ${phrase(t)}.`;
   let wrong=false,solved=false;
   show(`${vida(t.retry?'Bu parçayı bir daha bulalım.':'Dinle ve doğru parçaya dokun.')}
@@ -472,7 +599,7 @@ function round(){
 
 /* ---------- WORKSHOP ---------- */
 function workshop(){
-  const w={body:'bicycle',sel:[]};
+  const w={body:level().bodies[0],sel:[]};
   cur.w=w;
   const paint=()=>{
     const parts=w.sel.map(i=>cur.parts[i]);
@@ -486,7 +613,7 @@ function workshop(){
   <div class="two">
     <div class="sheet draw"><div id="draw"></div><p class="cap" id="abil"></p></div>
     <div class="wrap">
-      <div class="bodies">${Object.keys(BODIES).map(b=>`<button class="card bcard" data-b="${b}" type="button">${bodyIcon(b)}<span class="en">${b}</span></button>`).join('')}</div>
+      <div class="bodies">${level().bodies.map(b=>`<button class="card bcard" data-b="${b}" type="button">${bodyIcon(b)}<span class="en">${b}</span></button>`).join('')}</div>
       <div class="grid">${cur.parts.map((p,i)=>`<button class="card pcard" data-i="${i}" type="button">${partSVG(p)}<span class="small">${phrase(p)}</span></button>`).join('')}</div>
     </div>
   </div>
@@ -504,24 +631,28 @@ function workshop(){
 }
 
 /* ---------- PATENT (writing) ---------- */
+function fillT(t,p,mode){
+  const a=t.replace('{a}',`${p.size} ${p.color}`).split('{i}');
+  return {pre:a[0],word:p.type,post:a[1],mode,m:PARTS[p.type].tr};
+}
 function patent(){
   const parts=cur.w.sel.map(i=>cur.parts[i]);
   const last=parts[parts.length-1],P=PARTS[last.type];
   const body=cur.w.body;
   const tasks=[
-    {pre:`It has a ${parts[0].size} ${parts[0].color} `,word:parts[0].type,post:'.',mode:'tiles'},
-    {pre:`It has a ${parts[1].size} ${parts[1].color} `,word:parts[1].type,post:'.',mode:'tiles'},
-    {pre:P.pre,word:P.word,post:P.post,mode:'type',tr:P.tr}
+    fillT(level().t1,parts[0],'tiles'),
+    fillT(level().t2,parts[1],level().typed2?'type':'tiles'),
+    {pre:P.pre,word:P.word,post:P.post,mode:'type',m:P.m}
   ];
   cur.lines=tasks.map(t=>t.pre+t.word+t.post);
-  let name=PARTS[parts[0].type].adj,n=0;
+  let name=PARTS[parts[0].type].adj||'Super',n=0;
 
   function nameStep(){
     show(`${vida('İcadına bir ad ver. Hazır adı değiştirebilirsin.')}
     <div class="sheet draw">${invSVG(body,parts)}</div>
     <div class="field"><label for="nm">The</label><input id="nm" type="text" maxlength="14" value="${esc(name)}" autocomplete="off" autocapitalize="words" spellcheck="false"><span>${BODIES[body].En}</span></div>
     <button class="btn" id="ok" type="button">Patent belgesini aç</button>`,2);
-    $('#ok').onclick=()=>{name=$('#nm').value.trim()||PARTS[parts[0].type].adj;cur.name=`The ${name} ${BODIES[body].En}`;say(cur.name);later(task,50);};
+    $('#ok').onclick=()=>{name=$('#nm').value.trim()||PARTS[parts[0].type].adj||'Super';cur.name=`The ${name} ${BODIES[body].En}`;say(cur.name);later(task,50);};
   }
   function linesHTML(active){
     return tasks.map((t,i)=>{
@@ -550,9 +681,9 @@ function patent(){
       });
     }else{
       let tries=0;
-      show(`${vida('Son cümle senden. Eksik kelimeyi klavyeyle yaz.')}
+      show(`${vida('Eksik kelimeyi klavyeyle yaz.')}
       <div class="sheet"><p class="hand" style="font-size:1.2rem;color:var(--ink-soft)">${esc(cur.name)}</p><div class="lines">${linesHTML('____')}</div></div>
-      <div class="row"><button class="ghost" id="rep" type="button">Cümleyi dinle</button></div>
+      <div class="row"><button class="ghost" id="rep" type="button">Cümleyi dinle</button><span class="tag">İpucu: ${esc(t.m||'')}</span></div>
       <form id="f" class="field"><input id="ans" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" aria-label="Eksik kelime"><button class="btn" type="submit">Kontrol et</button></form>
       <p class="tag" id="hint" aria-live="polite"></p>`,2);
       const sent=t.pre+t.word+t.post;
@@ -664,14 +795,16 @@ function jury(){
 
 /* ---------- SAZ GAME ---------- */
 /* Original melody near makam Uşşak, tuned La-Re-Sol (bozuk düzen). s: 0 üst, 1 orta, 2 alt. */
-const CHART=[
+const CHART_1=[
   [0,2,0,'La'],[1,2,3,'Do'],[2,2,5,'Re'],[2.5,2,3,'Do'],[3,2,1.5,'Si'],[4,2,0,'La'],
   [8,0,0,'Sol'],[9,0,5,'Do'],[10,0,7,'Re'],[11,2,7,'Mi'],[11.5,2,5,'Re'],[12,2,3,'Do'],
   [16,1,7,'La'],[17,1,10,'Do'],[18,1,5,'Sol'],[19,2,1.5,'Si'],[20,2,0,'La'],[22,1,7,'La']
 ];
-const BEAT=760,TRAVEL=2700,LEAD=4;
+let CHART=CHART_1,BEAT=760;
+const TRAVEL=2700,LEAD=4;
 let lanes=null,running=null;
 function sazGame(){
+  CHART=chartFor(L);BEAT=760-L*14;
   show(`${vida('Sarı nota halkaya gelince o tele dokun. Önce dinleyebilirsin.')}
   <div class="line-now" id="now" aria-live="off">${esc(cur.lines[0])}</div>
   <div class="hw" id="hw">${STRINGS.map((s,i)=>`<div class="lane" data-s="${i}" role="button" tabindex="0" aria-label="${s.n} teli"><i>${s.n}</i></div>`).join('')}</div>
@@ -735,24 +868,25 @@ function start(auto){
 }
 function result(hits){
   const pct=hits/CHART.length,earn=pct>=.7?3:pct>=.4?2:1;
-  addGears(earn);S.played++;
+  addGears(earn);S.played++;if(!S.done.includes(L))S.done.push(L);
   const parts=cur.w.sel.map(k=>cur.parts[k]);
   S.book.unshift({no:cur.no,name:cur.name,body:cur.w.body,parts,lines:cur.lines,hits});
   S.book=S.book.slice(0,40);
-  S.log.unshift({d:new Date().toISOString().slice(0,10),n:cur.name,hits,...cur.st});
+  S.log.unshift({d:new Date().toISOString().slice(0,10),n:`B${L+1}: ${cur.name}`,hits,...cur.st});
   S.log=S.log.slice(0,20);save();
   sendReport(hits);
   show(`<p class="win">It works!</p>
   <div class="sheet draw running">${invSVG(cur.w.body,parts)}<p class="cap">${esc(cur.name)}</p></div>
   <p style="text-align:center;font-size:1.15rem">${hits} / ${CHART.length} nota tuttu, ${earn} dişli kazandın. İcadın Mucit Defteri'ne girdi.</p>
   <div class="row c">
-    <button class="btn" id="again" type="button">Yeni icat yap</button>
+    <button class="btn" id="nx" type="button">${L+1<LEVELS.length?'Sonraki bölüm':'Bölümlere dön'}</button>
+    <button class="ghost" id="again" type="button">Bu bölümü tekrar oyna</button>
     <button class="ghost" id="bk" type="button">Mucit Defteri</button>
     <button class="ghost" id="fs" type="button">Serbest saz</button>
   </div>`);
   fx.clap();say('It works!');
   CHART.slice(-4).forEach((c,i)=>setTimeout(()=>pluck(fHz(c[1],c[2])),600+i*260));
-  $('#again').onclick=learn;$('#bk').onclick=book;$('#fs').onclick=freeSaz;
+  $('#nx').onclick=()=>{if(L+1<LEVELS.length)startLevel(L+1);else home();};$('#again').onclick=learn;$('#bk').onclick=book;$('#fs').onclick=freeSaz;
 }
 
 /* ---------- FREE SAZ ---------- */
@@ -782,7 +916,7 @@ function sendReport(hits){
   const c=cur.st;
   const weak=Object.entries(S.weak).filter(e=>e[1]>0).sort((a,b)=>b[1]-a[1]).map(e=>e[0]+' '+e[1]).join(', ');
   S.out=S.out||[];
-  S.out.push({device:deviceId(),name:cur.name,played:S.played,gears:S.gears,depot:c.dw.join(', '),slow:c.slow,hint:c.hint,tile:c.tile,typ:c.typ,saz:hits,spoken:c.spoken,spokenAll:c.spokenAll,weak});
+  S.out.push({device:deviceId(),name:`B${L+1}: ${cur.name}`,played:S.played,gears:S.gears,depot:c.dw.join(', '),slow:c.slow,hint:c.hint,tile:c.tile,typ:c.typ,saz:hits,spoken:c.spoken,spokenAll:c.spokenAll,weak});
   S.out=S.out.slice(-30);save();
   flushReports();
 }
@@ -825,11 +959,13 @@ function book(){
 
 /* ---------- TEST SCREEN (open with #test; nothing is saved or sent) ---------- */
 function testSeed(){
-  const P=(type,color,size)=>({type,color,size});
+  const P=(type,color,size)=>({type,color,size}),lv=level(),its=[...lv.items,'wheel','wing','lamp'].slice(0,6),cs=lv.colors,sz=lv.sizes;
   cur={q:[],i:0,total:6,st:{dw:[],slow:0,hint:0,tile:0,typ:0,spoken:0,spokenAll:0},
-    parts:[P('wing','red','big'),P('wheel','blue','small'),P('spring','yellow','big'),P('lamp','red','small'),P('magnet','blue','big'),P('box','yellow','small')],
-    w:{body:'bicycle',sel:[0,1,2]},name:'The Flying Bicycle',no:'TEST',
-    lines:['It has a big red wing.','It has a small blue wheel.','It can jump.']};
+    pool:its,parts:its.map((t,i)=>P(t,cs[i%cs.length],sz[i%2])),
+    w:{body:lv.bodies[0],sel:[0,1,2]},name:'The Test '+BODIES[lv.bodies[0]].En,no:'TEST',
+    lines:[]};
+  const pa=cur.parts,last=PARTS[pa[2].type];
+  cur.lines=[fillT(lv.t1,pa[0]),fillT(lv.t2,pa[1])].map(t=>t.pre+t.word+t.post).concat(last.pre+last.word+last.post);
 }
 function testPanel(){
   testSeed();
@@ -838,6 +974,8 @@ function testPanel(){
   <div class="row"><button class="btn" id="tSay" type="button">Sesi dene</button><button class="ghost" id="tSaz" type="button">Saz sesi</button><button class="ghost" id="tMic" type="button">Mikrofonu dene</button></div>
   <p class="sheet" id="tOut" role="status" style="white-space:pre-line">Düğmelere bas, sonuç burada görünecek.</p>
   <h2>Bölüme atla</h2>
+  <label for="tLv">Bölüm</label>
+  <select id="tLv">${LEVELS.map((l,i)=>`<option value="${i}" ${i===L?'selected':''}>${i+1}. ${l.t}</option>`).join('')}</select>
   <div class="row">
     <button class="ghost" data-t="learn" type="button">Kelimeler</button>
     <button class="ghost" data-t="depot" type="button">1. Depo</button>
@@ -861,6 +999,7 @@ function testPanel(){
     hear(x=>out(x===null?'Mikrofon izni verilmedi veya kullanılamıyor.':x?`Duyulan: ${x}`:'Ses duyulmadı, tekrar dene.'));
   };
   const go={learn,depot,workshop,patent,jury,saz:sazGame,home};
+  $('#tLv').onchange=e=>{L=+e.target.value;testSeed();};
   $$('[data-t]').forEach(b=>b.onclick=()=>go[b.dataset.t]());
 }
 
