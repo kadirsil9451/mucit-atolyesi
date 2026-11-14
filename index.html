@@ -567,7 +567,9 @@ function depot(){
 }
 function round(){
   if(cur.i>=cur.q.length){workshop();return;}
-  const t=cur.q[cur.i],opts=makeOptions(t);
+  const t=cur.q[cur.i],all=makeOptions(t);
+  /* retry = easier: 3 choices and the English words written on screen */
+  const opts=t.retry?shuffle([all.find(o=>o.type===t.type&&o.color===t.color&&o.size===t.size),all.find(o=>o.type===t.type&&o.color!==t.color),all.find(o=>o.type!==t.type)].filter(Boolean)):all;
   const frame=pick(level().frames);
   const text=`${frame} ${phrase(t)}.`;
   let wrong=false,solved=false;
@@ -578,7 +580,7 @@ function round(){
     <button class="ghost" id="hint" type="button">Türkçe ipucu</button>
     <span class="tag">Parça ${Math.min(cur.parts.length+1,6)} / 6</span>
   </div>
-  <p id="said" class="hand" style="font-size:1.45rem;min-height:1.4em" aria-live="polite">${noVoice()?esc(text):''}</p>
+  <p id="said" class="hand" style="font-size:1.45rem;min-height:1.4em" aria-live="polite">${noVoice()||t.retry?esc(text):''}</p>
   <div class="grid" id="opts">${opts.map((o,n)=>`<button class="card" data-n="${n}" type="button" aria-label="Parça ${n+1}">${partSVG(o)}</button>`).join('')}</div>
   <div class="belt" aria-label="Topladığın parçalar">${cur.parts.map(partSVG).join('')}</div>`,0);
   const speak=(r)=>say(text,{rate:r});
@@ -598,6 +600,7 @@ function round(){
     }else{
       fx.no();b.classList.remove('shake');void b.offsetWidth;b.classList.add('shake');
       if(!wrong){wrong=true;cur.st.dw.push(phrase(t));S.weak[t.type]=(S.weak[t.type]||0)+1;save();if(!t.retry&&cur.q.length<9)cur.q.push({...t,retry:true});}
+      if(t.retry)$('#said').textContent=`${text} (${phraseTr(t)})`;
       later(()=>speak(.74),250);
     }
   });
