@@ -701,10 +701,12 @@ function patent(){
       $('#f').addEventListener('submit',e=>{
         e.preventDefault();
         const v=$('#ans').value.replace(/[İI]/g,'i').replace(/ı/g,'i').trim().toLowerCase();
+        if(!v){say(t.word);$('#ans').focus();return;}
         if(v===t.word){$('#ans').blur();finishLine();}
         else{tries++;cur.st.typ++;fx.no();
+          if(tries>=5){$('#ans').blur();t.mode='tiles';later(task,400);return;}
           const shown=t.word.slice(0,Math.min(tries,t.word.length-1));
-          $('#hint').textContent=`Neredeyse. Kelime şöyle başlıyor: ${shown}${'_'.repeat(t.word.length-shown.length)}`;
+          $('#hint').textContent=tries>=3?`Kelime: ${t.word} — aynen yaz.`:`Neredeyse. Kelime şöyle başlıyor: ${shown}${'_'.repeat(t.word.length-shown.length)}`;
           say(t.word);
         }
       });
