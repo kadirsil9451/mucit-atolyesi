@@ -488,12 +488,17 @@ function chartFor(i){
   });
   return out;
 }
-function startLevel(i){L=i;learn();}
+/* the 2 old review parts are chosen once per level start, so the learn screen can show them before the depot */
+let rev={L:-1,keys:[]};
+function review(){
+  if(rev.L!==L){const own=level().items;rev={L,keys:L===0?[]:shuffle(LEVELS.slice(0,L).flatMap(x=>x.items).filter(k=>!own.includes(k))).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,2)};}
+  return rev.keys;
+}
+function startLevel(i){L=i;rev.L=-1;learn();}
 function pool(){
   const lv=level();
   if(L===0)return shuffle(lv.items).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,6);
-  const old=shuffle(LEVELS.slice(0,L).flatMap(x=>x.items)).sort((a,b)=>(S.weak[b]||0)-(S.weak[a]||0)).slice(0,2);
-  return [...lv.items,...old];
+  return [...lv.items,...review()];
 }
 
 /* ---------- game state ---------- */
@@ -533,9 +538,13 @@ function home(){
 
 /* ---------- LEARN ---------- */
 function learn(){
-  const heard=new Set(),lv=level(),keys=lv.items,seen=S.done.includes(L)||TEST;
+  const heard=new Set(),lv=level(),own=lv.items,seen=S.done.includes(L)||TEST;
+  /* review parts missed 3+ times get a listen-first reminder before the depot */
+  const hard=review().filter(k=>(S.weak[k]||0)>=3),keys=[...own,...hard];
+  const card=(k,n)=>`<button class="card" data-k="${k}" type="button">${iconSVG(k,lv.colors[n%lv.colors.length])}<span class="en">${k}</span><span class="tr">${PARTS[k].tr}</span></button>`;
   show(`${vida(`${L+1}. bölüm: ${lv.t}. Parçalara dokun, adlarını İngilizce dinle.`)}
-  <div class="grid g4">${keys.map(k=>`<button class="card" data-k="${k}" type="button">${iconSVG(k,lv.colors[keys.indexOf(k)%lv.colors.length])}<span class="en">${k}</span><span class="tr">${PARTS[k].tr}</span></button>`).join('')}</div>
+  <div class="grid g4">${own.map(card).join('')}</div>
+  ${hard.length?`<h2>Hatırla: depoda yine çıkacak</h2><div class="grid g4" id="hard">${hard.map(card).join('')}</div>`:''}
   <div class="row"><button class="btn" id="next" type="button" ${seen?'':'disabled'}>Depoya git</button><span class="tag" id="cnt">0 / ${keys.length} dinlendi</span></div>`,0);
   $$('.card').forEach(b=>b.onclick=()=>{
     say(b.dataset.k);b.classList.add('heard');heard.add(b.dataset.k);
