@@ -593,15 +593,17 @@ function round(){
   const opts=t.retry?shuffle([all.find(o=>o.type===t.type&&o.color===t.color&&o.size===t.size),all.find(o=>o.type===t.type&&o.color!==t.color),all.find(o=>o.type!==t.type)].filter(Boolean)):all;
   const frame=pick(level().frames);
   const text=`${frame} ${phrase(t)}.`;
+  /* old parts missed 3+ times: show the English sentence on the first try too */
+  const tough=!t.retry&&(S.weak[t.type]||0)>=3&&!level().items.includes(t.type);
   let wrong=false,solved=false;
-  show(`${vida(t.retry?'Bu parçayı bir daha bulalım.':'Dinle ve doğru parçaya dokun.')}
+  show(`${vida(t.retry?'Bu parçayı bir daha bulalım.':tough?'Zor parça! Dinle, yazıyı da oku.':'Dinle ve doğru parçaya dokun.')}
   <div class="row">
     <button class="btn" id="rep" type="button">Dinle</button>
     <button class="ghost" id="slow" type="button">Yavaş</button>
     <button class="ghost" id="hint" type="button">Türkçe ipucu</button>
     <span class="tag">Parça ${Math.min(cur.parts.length+1,6)} / 6</span>
   </div>
-  <p id="said" class="hand" style="font-size:1.45rem;min-height:1.4em" aria-live="polite">${noVoice()||t.retry?esc(text):''}</p>
+  <p id="said" class="hand" style="font-size:1.45rem;min-height:1.4em" aria-live="polite">${noVoice()||t.retry||tough?esc(text):''}</p>
   <div class="grid" id="opts">${opts.map((o,n)=>`<button class="card" data-n="${n}" type="button" aria-label="Parça ${n+1}">${partSVG(o)}</button>`).join('')}</div>
   <div class="belt" aria-label="Topladığın parçalar">${cur.parts.map(partSVG).join('')}</div>`,0);
   const speak=(r)=>say(text,{rate:r});
