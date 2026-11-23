@@ -759,10 +759,11 @@ function patent(){
 /* ---------- JURY (speaking) ---------- */
 const JUDGE=c=>`<svg viewBox="0 0 78 92" aria-hidden="true"><rect x="12" y="34" width="54" height="42" rx="10" fill="#f5f8fe" stroke="${INK}" stroke-width="3"/><circle cx="30" cy="52" r="5" fill="${INK}"/><circle cx="48" cy="52" r="5" fill="${INK}"/><path d="M31 64Q39 70 47 64" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><g class="pad"><rect x="20" y="3" width="38" height="24" rx="4" fill="${c}" stroke="${INK}" stroke-width="3"/><text x="39" y="21" text-anchor="middle" font-size="16" font-weight="800" fill="${INK}">10</text><path d="M39 27V34" stroke="${INK}" stroke-width="4"/></g></svg>`;
 function jury(){
-  let i=0;
+  let i=0,best=0,tries=0;
   const lines=cur.lines;
   function ren(){
     if(i>=lines.length){done();return;}
+    best=0;tries=0;
     const words=lines[i].split(' ');
     show(`<div class="judges" id="jd">${JUDGE('#ffc23d')}${JUDGE('#58d99a')}${JUDGE('#ff8a6b')}</div>
     <p class="tag" style="text-align:center">Cümle ${i+1} / ${lines.length}</p>
@@ -795,9 +796,15 @@ function jury(){
       const got=new Set(text.toLowerCase().replace(/[^a-z\s]/g,'').split(/\s+/));
       let m=0;const sp=$$('#say span');
       sp.forEach(s=>{const w=s.textContent.toLowerCase().replace(/[^a-z]/g,'');if(got.has(w)){s.className='good';m++;}});
-      cur.st.spoken+=m;cur.st.spokenAll+=sp.length;
-      $('#msg').textContent=m>=sp.length/2?'Jüri bayıldı!':'Güzel deneme, jüri alkışlıyor!';
-      applaud();
+      tries++;best=Math.max(best,m);
+      const keep=()=>{cur.st.spoken+=best;cur.st.spokenAll+=sp.length;$('#msg').textContent=best>=sp.length/2?'Jüri bayıldı!':'Güzel deneme, jüri alkışlıyor!';applaud();};
+      if(m<sp.length/2&&tries<2){
+        $('#msg').textContent=(m?'Yeşil kelimeler doğru! ':'')+'Bir kez daha dinle, yavaşça tekrar dene.';
+        $('#act').innerHTML=`<button class="btn" id="mic" type="button">Tekrar konuş</button><button class="ghost" id="again" type="button">Tekrar dinle</button><button class="ghost" id="skip" type="button">Devam</button>`;
+        $('#mic').onclick=mic;$('#again').onclick=listen;$('#skip').onclick=keep;
+        return;
+      }
+      keep();
     });
   }
   function pace(){
